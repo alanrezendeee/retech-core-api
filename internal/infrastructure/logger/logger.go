@@ -20,6 +20,7 @@ func New(level string) *slog.Logger {
 	default:
 		lv = slog.LevelInfo
 	}
-	h := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lv})
+	// Texto no terminal (legível como o auth-api); evita JSON em desenvolvimento.
+	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: lv})
 	return slog.New(h)
 }

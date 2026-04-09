@@ -1,19 +1,22 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: retech-core-db
     environment:
-      POSTGRES_USER: core
-      POSTGRES_PASSWORD: core
-      POSTGRES_DB: retech_core
+      POSTGRES_USER: retech_core_user
+      POSTGRES_PASSWORD: 250a5651-a687-4f4c-902a-10dec0d9a8e3
+      POSTGRES_DB: retech_core_db
     ports:
-      - "5433:5432"
+      - "5431:5432"
     volumes:
-      - retech_core_pg:/var/lib/postgresql/data
+      - retech_core_db_volume:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U core -d retech_core"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U retech_core_user -d retech-core-db"]
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+    networks:
+      - retech-core-network
 
   api:
     build: .
@@ -21,12 +24,16 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://core:core@postgres:5432/retech_core?sslmode=disable
-      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://retech_core_user:250a5651-a687-4f4c-902a-10dec0d9a8e3@postgres:5431/retech_core_db?sslmode=disable
+      HTTP_ADDR: ":8001"
       GIN_MODE: release
       LOG_LEVEL: info
     ports:
-      - "8080:8080"
+      - "8001:8080"
 
 volumes:
-  retech_core_pg:
+  retech_core_db_volume:
+
+networks:
+  retech-core-network:
+    driver: bridge

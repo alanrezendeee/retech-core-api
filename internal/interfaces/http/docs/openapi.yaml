@@ -1,0 +1,416 @@
+openapi: 3.0.3
+info:
+  title: Retech Core API
+  description: |
+    Gestão de tenants, aplicações SaaS e vínculos usuário–tenant–aplicação.
+
+    Rotas protegidas exigem o header **`X-Tenant-ID`** com UUID de um tenant **ativo**.
+    A exceção é **`POST /tenants`**, usado para cadastrar um tenant (bootstrap).
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Servidor atual
+
+tags:
+  - name: health
+  - name: tenants
+  - name: applications
+  - name: relationships
+
+components:
+  securitySchemes:
+    TenantId:
+      type: apiKey
+      in: header
+      name: X-Tenant-ID
+      description: UUID do tenant (obrigatório nas rotas protegidas).
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: TENANT_REQUIRED
+            message:
+              type: string
+      required: [error]
+
+    DataEnvelopeTenant:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Tenant"
+
+    DataEnvelopeTenantArray:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tenant"
+
+    DataEnvelopeApplication:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Application"
+
+    DataEnvelopeApplicationArray:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Application"
+
+    HealthResponse:
+      type: object
+      required: [service, status, dataBase, version]
+      properties:
+        service:
+          type: string
+          example: retech-core-api
+        status:
+          type: string
+          description: ok se o banco responde; degraded caso contrário.
+          enum: [ok, degraded]
+        dataBase:
+          type: string
+          description: Conectividade com o PostgreSQL.
+          enum: [up, down]
+        version:
+          type: string
+          example: dev
+
+    Tenant:
+      type: object
+      required: [id, name, active, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    CreateTenantRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        active:
+          type: boolean
+          description: Padrão `true` se omitido.
+
+    Application:
+      type: object
+      required: [id, name, active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateApplicationRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        active:
+          type: boolean
+          description: Padrão `true` se omitido.
+
+    LinkApplicationRequest:
+      type: object
+      required: [application_id]
+      properties:
+        application_id:
+          type: string
+          format: uuid
+
+    LinkUserRequest:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: Identificador do usuário no serviço de autenticação.
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Healthcheck
+      description: Verifica disponibilidade da API e conectividade com o PostgreSQL.
+      security: []
+      responses:
+        "200":
+          description: API e banco operacionais (`status` ok, `dataBase` up).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Banco indisponível (`status` degraded, `dataBase` down).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /docs:
+    get:
+      tags: [health]
+      summary: Documentação (Redoc)
+      description: Interface HTML Redoc para esta especificação.
+      security: []
+      responses:
+        "200":
+          description: Página HTML
+          content:
+            text/html: {}
+
+  /openapi.yaml:
+    get:
+      tags: [health]
+      summary: Especificação OpenAPI
+      security: []
+      responses:
+        "200":
+          description: Documento OpenAPI 3 em YAML
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+  /tenants:
+    post:
+      tags: [tenants]
+      summary: Criar tenant
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantRequest"
+      responses:
+        "201":
+          description: Tenant criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeTenant"
+        "400":
+          description: Corpo inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Erro interno
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+    get:
+      tags: [tenants]
+      summary: Obter tenant atual
+      description: Retorna o tenant identificado por `X-Tenant-ID` (em array de um elemento).
+      security:
+        - TenantId: []
+      responses:
+        "200":
+          description: Lista com o tenant do contexto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeTenantArray"
+        "400":
+          description: Header `X-Tenant-ID` ausente ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Tenant inativo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Tenant não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /applications:
+    post:
+      tags: [applications]
+      summary: Cadastrar aplicação (catálogo)
+      security:
+        - TenantId: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApplicationRequest"
+      responses:
+        "201":
+          description: Aplicação criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeApplication"
+        "400":
+          description: Corpo inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Nome de aplicação duplicado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+    get:
+      tags: [applications]
+      summary: Listar aplicações do tenant
+      description: Somente aplicações **ativas** e **vinculadas** ao tenant (`X-Tenant-ID`).
+      security:
+        - TenantId: []
+      responses:
+        "200":
+          description: Lista de aplicações
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeApplicationArray"
+        "400":
+          description: Header `X-Tenant-ID` ausente ou inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tenants/{id}/applications:
+    post:
+      tags: [relationships]
+      summary: Vincular aplicação ao tenant
+      description: |
+        O `id` na URL deve ser **igual** ao UUID enviado em `X-Tenant-ID`.
+      security:
+        - TenantId: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkApplicationRequest"
+      responses:
+        "204":
+          description: Vínculo criado (ou já existia)
+        "400":
+          description: UUID inválido ou corpo inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Proibido — `id` diferente do tenant do contexto, ou tenant inativo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Tenant ou aplicação não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          description: Aplicação inativa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tenants/{id}/users:
+    post:
+      tags: [relationships]
+      summary: Vincular usuário ao tenant
+      description: |
+        O `id` na URL deve ser **igual** ao UUID enviado em `X-Tenant-ID`.
+      security:
+        - TenantId: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkUserRequest"
+      responses:
+        "204":
+          description: Vínculo criado (ou já existia)
+        "400":
+          description: UUID inválido ou corpo inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Proibido — `id` diferente do tenant do contexto, ou tenant inativo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Tenant não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"

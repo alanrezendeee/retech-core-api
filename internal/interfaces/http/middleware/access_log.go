@@ -19,7 +19,7 @@ func AccessLog() gin.HandlerFunc {
 		if !ok {
 			return
 		}
-		log.Info("request completed",
+		log.Info("requisição concluída",
 			slog.Int("status", c.Writer.Status()),
 			slog.Duration("latency", time.Since(start)),
 			slog.Int("bytes", c.Writer.Size()),

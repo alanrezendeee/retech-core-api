@@ -1,0 +1,208 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-core-api-0001-retech",
+		"name": "Retech - Core - Api",
+		"description": "Coleção da Retech Core API (tenants, applications, vínculos).\n\n**Variáveis**\n- `baseUrlDev`: ambiente local (padrão `http://localhost:8080`).\n- `baseUrlProd`: produção (vazio até definir).\n- `tenantId`: UUID do tenant para header `X-Tenant-ID` nas rotas protegidas.\n\nAs requisições usam `{{baseUrlDev}}`. Para produção, troque para `{{baseUrlProd}}` nas URLs ou duplique a pasta.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrlDev",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "baseUrlProd",
+			"value": ""
+		},
+		{
+			"key": "tenantId",
+			"value": ""
+		},
+		{
+			"key": "applicationId",
+			"value": ""
+		},
+		{
+			"key": "userId",
+			"value": ""
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Healthcheck",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrlDev}}/health",
+						"description": "Verifica API e PostgreSQL. `200` ok; `503` se o banco estiver indisponível."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Docs",
+			"item": [
+				{
+					"name": "OpenAPI YAML",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrlDev}}/openapi.yaml"
+					},
+					"response": []
+				},
+				{
+					"name": "Redoc (HTML)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrlDev}}/docs"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tenants",
+			"item": [
+				{
+					"name": "Create tenant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Minha Empresa\",\n  \"active\": true\n}"
+						},
+						"url": "{{baseUrlDev}}/tenants",
+						"description": "Bootstrap: **não** envia `X-Tenant-ID`. Guarde o `id` retornado em `tenantId`."
+					},
+					"response": []
+				},
+				{
+					"name": "Get current tenant",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenantId}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrlDev}}/tenants",
+						"description": "Retorna array com um elemento: o tenant do header."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Applications",
+			"item": [
+				{
+					"name": "Create application (catalog)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenantId}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"retechfin\",\n  \"active\": true\n}"
+						},
+						"url": "{{baseUrlDev}}/applications",
+						"description": "Cadastra no catálogo global. Nome único. Guarde `applicationId` para vínculos."
+					},
+					"response": []
+				},
+				{
+					"name": "List applications (linked to tenant)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenantId}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrlDev}}/applications",
+						"description": "Somente apps ativas vinculadas ao tenant."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Relationships",
+			"item": [
+				{
+					"name": "Link application to tenant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenantId}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"application_id\": \"{{applicationId}}\"\n}"
+						},
+						"url": "{{baseUrlDev}}/tenants/{{tenantId}}/applications",
+						"description": "O `:id` na URL deve ser igual ao `X-Tenant-ID`. Resposta `204` sem corpo."
+					},
+					"response": []
+				},
+				{
+					"name": "Link user to tenant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenantId}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{userId}}\"\n}"
+						},
+						"url": "{{baseUrlDev}}/tenants/{{tenantId}}/users",
+						"description": "`user_id` vem do serviço de auth. Resposta `204` sem corpo."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

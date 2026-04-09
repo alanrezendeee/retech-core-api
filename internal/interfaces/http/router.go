@@ -8,6 +8,7 @@ import (
 
 	"github.com/theretech/retech-core-api/internal/application/usecase"
 	"github.com/theretech/retech-core-api/internal/domain"
+	"github.com/theretech/retech-core-api/internal/interfaces/http/docs"
 	"github.com/theretech/retech-core-api/internal/interfaces/http/handlers"
 	"github.com/theretech/retech-core-api/internal/interfaces/http/middleware"
 )
@@ -28,6 +29,8 @@ func NewRouter(d RouterDeps) *gin.Engine {
 	r.Use(gin.Recovery())
 	r.Use(middleware.RequestID(d.Log))
 	r.Use(middleware.AccessLog())
+
+	docs.Register(r)
 
 	healthH := &handlers.Health{DB: d.DB}
 	r.GET("/health", healthH.Handle)

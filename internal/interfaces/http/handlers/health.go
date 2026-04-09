@@ -6,26 +6,40 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/theretech/retech-core-api/internal/infrastructure/persistence"
-	"github.com/theretech/retech-core-api/internal/interfaces/http/response"
+	"github.com/theretech/retech-core-api/internal/version"
 )
+
+type healthResponse struct {
+	Service  string `json:"service"`
+	Status   string `json:"status"`
+	DataBase string `json:"dataBase"`
+	Version  string `json:"version"`
+}
 
 type Health struct {
 	DB *gorm.DB
 }
 
 func (h *Health) Handle(c *gin.Context) {
-	dbStatus := "up"
-	if err := persistence.Ping(h.DB); err != nil {
-		dbStatus = "down"
-		response.JSON(c, http.StatusServiceUnavailable, gin.H{
-			"status":   "degraded",
-			"database": dbStatus,
-		})
-		return
+	dataBase := "up"
+	status := "ok"
+	code := http.StatusOK
+
+	sqlDB, err := h.DB.DB()
+	if err != nil {
+		dataBase = "down"
+		status = "degraded"
+		code = http.StatusServiceUnavailable
+	} else if err := sqlDB.PingContext(c.Request.Context()); err != nil {
+		dataBase = "down"
+		status = "degraded"
+		code = http.StatusServiceUnavailable
 	}
-	response.JSON(c, http.StatusOK, gin.H{
-		"status":   "ok",
-		"database": dbStatus,
+
+	c.JSON(code, healthResponse{
+		Service:  version.Service,
+		Status:   status,
+		DataBase: dataBase,
+		Version:  version.Version,
 	})
 }
